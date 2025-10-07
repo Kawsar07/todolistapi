@@ -1,10 +1,10 @@
 from django.urls import path
-from EmployeeApp import views
+from .views import todoTaskApi  # ✅ Correct import
+
+from django.urls import path
+from .views import todoTaskApi, todoTaskDetail
 
 urlpatterns = [
-    path('department/', views.departmentApi),
-    path('department/<int:id>/', views.departmentApi),
-
-    path('employee/', views.employeeApi),
-    path('employee/<int:id>/', views.employeeApi),
+    path('todo/', todoTaskApi),              # GET all, POST new
+    path('todo/<int:pk>/', todoTaskDetail),  # GET one, PUT, DELETE
 ]
