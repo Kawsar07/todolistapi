@@ -1,14 +1,18 @@
 from django.urls import path
-
-
 from .views import (
     todoTaskApi, todoTaskDetail,
-    categoryListCreateApi, categoryDetailApi
+    categoryListCreateApi, categoryDetailApi,
+    login,
+    RegisterView,
+    ProfileView
 )
 
 urlpatterns = [
-    path('todo/', todoTaskApi),               # GET all, POST new
-    path('todo/<int:pk>/', todoTaskDetail),   # GET one, PUT, DELETE
-    path('categories/', categoryListCreateApi),         # GET all, POST new
-    path('categories/<int:pk>/', categoryDetailApi),    # GET one, PUT, DELETE
+    path('register/', RegisterView.as_view()),
+    path('login/', login),
+    path('profile/', ProfileView.as_view()),
+    path('todo/', todoTaskApi),
+    path('todo/<int:pk>/', todoTaskDetail),
+    path('categories/', categoryListCreateApi),
+    path('categories/<int:pk>/', categoryDetailApi),
 ]

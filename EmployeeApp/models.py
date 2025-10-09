@@ -1,27 +1,94 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
+    creator = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='categories',
+        null=True,
+        blank=True
+    )
+    is_general = models.BooleanField(default=False)
+    created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "todo_category"
+        ordering = ['-is_general', 'name']
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({'General' if self.is_general else 'Personal'})"
+
+    @staticmethod
+    def get_default_category():
+        """
+        Ensure a single shared 'Default Category' exists and return it.
+        This is a general category (is_general=True) with no creator.
+        """
+        category, created = Category.objects.get_or_create(
+            name="Default Category",
+            defaults={"is_general": True, "creator": None}
+        )
+        # In case an existing category has incorrect flags, fix it.
+        if not category.is_general or category.creator is not None:
+            category.is_general = True
+            category.creator = None
+            category.save(update_fields=['is_general', 'creator'])
+        return category
+
+    def is_editable_by(self, user):
+        """Only personal categories created by the user are editable."""
+        return not self.is_general and self.creator == user
+
+    def save(self, *args, **kwargs):
+        # Set created_at on first save if not already set
+        if not self.pk and not self.created_at:
+            self.created_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    name = models.CharField(max_length=100)
+    location = models.CharField(max_length=100, blank=True)
+    image = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    default_category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='default_profiles'
+    )
+
+    class Meta:
+        db_table = "todo_profile"
+
+    def __str__(self):
+        return f"{self.name} ({self.user.email})"
+
 
 class TodoTask(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     due_date = models.DateTimeField(blank=True, null=True)
     is_completed = models.BooleanField(default=False)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tasks'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "todo_task"
+        ordering = ['-created_at']
 
     def __str__(self):
-        return self.name
-
-
+        status = "✓" if self.is_completed else "○"
+        return f"{status} {self.name}"
