@@ -1,9 +1,14 @@
 from django.urls import path
-from .views import (
-    RegisterView, ProfileView, todoTaskApi, todoTaskDetail,
-    categoryListCreateApi, categoryDetailApi, ForgotPasswordView,
-    OTPVerificationView, ChangePasswordView, login
-)
+from .views.register import RegisterView
+from .views.login import login
+from .views.profile import ProfileView
+from .views.todo import todoTaskApi, todoTaskDetail
+from .views.category import categoryListCreateApi, categoryDetailApi
+from .views.forgot_password import ForgotPasswordView
+from .views.otp_verification import OTPVerificationView
+from .views.change_password import ChangePasswordView
+
+app_name = 'EmployeeApp'
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
