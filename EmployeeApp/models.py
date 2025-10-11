@@ -23,15 +23,10 @@ class Category(models.Model):
 
     @staticmethod
     def get_default_category():
-        """
-        Ensure a single shared 'Default Category' exists and return it.
-        This is a general category (is_general=True) with no creator.
-        """
         category, created = Category.objects.get_or_create(
             name="Default Category",
             defaults={"is_general": True, "creator": None}
         )
-        # In case an existing category has incorrect flags, fix it.
         if not category.is_general or category.creator is not None:
             category.is_general = True
             category.creator = None
@@ -39,15 +34,12 @@ class Category(models.Model):
         return category
 
     def is_editable_by(self, user):
-        """Only personal categories created by the user are editable."""
         return not self.is_general and self.creator == user
 
     def save(self, *args, **kwargs):
-        # Set created_at on first save if not already set
         if not self.pk and not self.created_at:
             self.created_at = timezone.now()
         super().save(*args, **kwargs)
-
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -67,7 +59,6 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.user.email})"
-
 
 class TodoTask(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
@@ -92,3 +83,16 @@ class TodoTask(models.Model):
     def __str__(self):
         status = "✓" if self.is_completed else "○"
         return f"{status} {self.name}"
+
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "todo_otp"
+
+    def __str__(self):
+        return f"OTP {self.otp} for {self.user.email}"
