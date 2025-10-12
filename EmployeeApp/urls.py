@@ -7,7 +7,7 @@ from .views.category import categoryListCreateApi, categoryDetailApi
 from .views.forgot_password import ForgotPasswordView
 from .views.otp_verification import OTPVerificationView
 from .views.change_password import ChangePasswordView
-from .views.user_management import UserListView, UserDetailView
+from .views.user_management import UserListView, UserSearchView, UserDetailView
 from .views.pending_registration import PendingRegistrationListView, PendingRegistrationDetailView
 
 app_name = 'EmployeeApp'
@@ -24,6 +24,7 @@ urlpatterns = [
     path('verify-otp/', OTPVerificationView.as_view(), name='verify_otp'),
     path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('users/', UserListView.as_view(), name='user_list'),
+    path('users/search/', UserSearchView.as_view(), name='user_search'),
     path('users/<int:user_id>/', UserDetailView.as_view(), name='user_detail'),
     path('pending-registrations/', PendingRegistrationListView.as_view(), name='pending_registration_list'),
     path('pending-registrations/<int:pk>/', PendingRegistrationDetailView.as_view(), name='pending_registration_detail'),
