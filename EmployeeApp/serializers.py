@@ -1,8 +1,9 @@
 from rest_framework import serializers
-from .models import TodoTask, Category, Profile, OTP
+from .models import TodoTask, Category, Profile, OTP, PendingRegistration, ROLE_CHOICES
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Q
+from django.contrib.auth.hashers import make_password
 
 class CategorySerializer(serializers.ModelSerializer):
     is_editable = serializers.SerializerMethodField()
@@ -61,10 +62,12 @@ class ProfileSerializer(serializers.ModelSerializer):
     default_category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source='default_category', write_only=True, required=False
     )
+    email = serializers.EmailField(source='user.email', read_only=True)
+    role = serializers.ChoiceField(choices=ROLE_CHOICES, required=False)
 
     class Meta:
         model = Profile
-        fields = ['name', 'location', 'image_url', 'image', 'default_category', 'default_category_id']
+        fields = ['name', 'location', 'image_url', 'image', 'default_category', 'default_category_id', 'email', 'role']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,6 +83,13 @@ class ProfileSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.image.url)
         return None
+
+class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'profile']
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -105,8 +115,8 @@ class RegistrationSerializer(serializers.Serializer):
     image = serializers.ImageField(required=False, allow_null=True)
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email already registered")
+        if User.objects.filter(email=value).exists() or PendingRegistration.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email already registered or pending approval")
         return value
 
     def validate_image(self, value):
@@ -116,28 +126,16 @@ class RegistrationSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        image = validated_data.pop('image', None)
-        password = validated_data.pop('password')
-        email = validated_data.pop('email')
+        validated_data['password'] = make_password(validated_data['password'])
+        return PendingRegistration.objects.create(**validated_data)
 
-        user = User.objects.create_user(
-            username=email,
-            email=email,
-            password=password,
-        )
+class PendingRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PendingRegistration
+        fields = ['id', 'email', 'name', 'location', 'image', 'status', 'created_at']
 
-        profile_data = {k: v for k, v in validated_data.items() if k in ['name', 'location']}
-        profile = Profile.objects.create(user=user, **profile_data)
-
-        default_category = Category.get_default_category()
-        profile.default_category = default_category
-        profile.save()
-
-        if image:
-            profile.image = image
-            profile.save()
-
-        return user
+class RoleUpdateSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=ROLE_CHOICES)
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()

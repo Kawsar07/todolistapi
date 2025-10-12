@@ -2,6 +2,18 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+ROLE_CHOICES = (
+    ('superadmin', 'SuperAdmin'),
+    ('admin', 'Admin'),
+    ('user', 'User'),
+)
+
+STATUS_CHOICES = (
+    ('approved', 'Approved'),
+    ('pending', 'Pending'),
+    ('rejected', 'Rejected'),
+)
+
 class Category(models.Model):
     name = models.CharField(max_length=100)
     creator = models.ForeignKey(
@@ -53,6 +65,8 @@ class Profile(models.Model):
         blank=True,
         related_name='default_profiles'
     )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='approved')
 
     class Meta:
         db_table = "todo_profile"
@@ -96,3 +110,22 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"OTP {self.otp} for {self.user.email}"
+
+class PendingRegistration(models.Model):
+    email = models.EmailField(unique=True)
+    name = models.CharField(max_length=100)
+    password = models.CharField(max_length=128)
+    location = models.CharField(max_length=100, blank=True)
+    image = models.ImageField(upload_to='pending_profile_pics/', blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "todo_pending_registration"
+
+    def __str__(self):
+        return f"Pending Registration: {self.email} ({self.status})"

@@ -8,7 +8,6 @@ from drf_yasg import openapi
 from ..models import Profile, Category
 from ..serializers import ProfileSerializer
 
-
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -26,9 +25,7 @@ class ProfileView(APIView):
             profile.default_category = Category.get_default_category()
             profile.save(update_fields=['default_category'])
         serializer = ProfileSerializer(profile, context={'request': request})
-        data = serializer.data
-        data['email'] = request.user.email
-        return Response(data)
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_description="Update user profile with form data",
