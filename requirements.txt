@@ -13,7 +13,7 @@ drf-yasg==1.21.11
 filelock==3.12.4
 gunicorn==23.0.0
 inflection==0.5.1
-numpy==1.26.1
+numpy==1.26.4
 packaging==25.0
 pandas==2.1.1
 pillow==11.3.0
