@@ -20,7 +20,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'drf_yasg',
-    'EmployeeApp.apps.EmployeeappConfig'
+    'EmployeeApp.apps.EmployeeappConfig',
+    'django_filters'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -40,6 +41,11 @@ CORS_ALLOW_HEADERS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',  # For ?search=query
+        'rest_framework.filters.OrderingFilter',  # For ?ordering=field
     ],
 }
 
