@@ -232,14 +232,14 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DB_LIVE = os.getenv("DB_LIVE")
 
 if DB_LIVE in ["False", False]:
-    DATABASES = {
+    DATABASES = {   # uses SQLite
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 else:
-    DATABASES = {
+    DATABASES = {   # uses PostgreSQL
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.getenv("DB_NAME"),
@@ -249,6 +249,7 @@ else:
             'PORT': os.getenv("DB_PORT"),
         }
     }
+
 
 # Optional: Override with DATABASE_URL if provided (e.g., for Render)
 DATABASE_URL = os.getenv("DATABASE_URL")  # Changed to use env var instead of hard-coded
