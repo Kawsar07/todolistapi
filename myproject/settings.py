@@ -158,7 +158,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", 'django-insecure-!$66-a2xh-e*)h57l-69t4m@_3
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ['*']  # You can restrict later
+ALLOWED_HOSTS = ["*", ".railway.app"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
