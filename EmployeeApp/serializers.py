@@ -127,39 +127,11 @@ class RegistrationSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         try:
-            email = validated_data['email']
-            password = validated_data['password']  # Raw password (will be hashed by create_user)
-            name = validated_data['name']
-            location = validated_data.get('location', '')
-            image = validated_data.get('image')
-
-            # Check for username conflict (since username = email)
-            if User.objects.filter(username=email).exists():
-                raise serializers.ValidationError("Email already used as username.")
-
-            # Create User directly (auto-hashes password)
-            user = User.objects.create_user(
-                username=email,  # Use email as username for auth
-                email=email,
-                password=password  # Raw; create_user hashes it
-            )
-            user.is_active = True  # Ensure active for immediate login
-            user.save()
-
-            # Create Profile
-            profile = Profile.objects.create(
-                user=user,
-                name=name,
-                location=location,
-                image=image
-            )
-
-            # Optional: Delete any existing PendingRegistration for this email (cleanup)
-            PendingRegistration.objects.filter(email=email).delete()
-
-            return user  # Returns User instance (adjust view if needed)
+            # Hash password and create PendingRegistration only
+            validated_data['password'] = make_password(validated_data['password'])  # Hash for storage
+            return PendingRegistration.objects.create(**validated_data)
         except Exception as e:
-            raise serializers.ValidationError(f"Registration failed: {str(e)}")
+            raise serializers.ValidationError(f"Failed to create pending registration: {str(e)}")
 
 class PendingRegistrationSerializer(serializers.ModelSerializer):
     class Meta:

@@ -53,32 +53,60 @@ class PendingRegistrationDetailView(APIView):
         if status_choice not in ['approved', 'rejected']:
             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
         
-        pending.status = status_choice
-        pending.save()
-        
         if status_choice == 'approved':
-            user = User.objects.create_user(
+            # Create User with pre-hashed password (use create() since password is hashed)
+            user = User.objects.create(
                 username=pending.email,
                 email=pending.email,
-                password=pending.password
+                password=pending.password  # Already hashed, so check_password will work with original raw
             )
+            user.is_active = True
+            user.save()
+
+            # Assign role (default 'user', override if superadmin)
+            role = 'user' if request.user.profile.role != 'superadmin' else request.data.get('role', 'user')
+
+            # Create Profile with default category
+            default_category = Category.get_default_category()
             profile_data = {
                 'name': pending.name,
                 'location': pending.location,
-                'default_category': Category.get_default_category(),
-                'role': 'user' if request.user.profile.role != 'superadmin' else request.data.get('role', 'user'),
+                'default_category': default_category,
+                'role': role,
                 'status': 'approved'
             }
             profile = Profile.objects.create(user=user, **profile_data)
             if pending.image:
                 profile.image = pending.image
                 profile.save()
-            
+
+            # Update pending status and optionally delete
+            pending.status = 'approved'
+            pending.save()
+            pending.delete()  # Clean up after approval
+
+            # Generate tokens for the new user (optional: return to admin for sharing)
             refresh = RefreshToken.for_user(user)
             return Response({
-                'message': 'Registration approved',
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            })
+                'message': 'Registration approved. User created successfully.',
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'role': role
+                },
+                'tokens': {  # Optional: for admin to provide to user
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
+            }, status=status.HTTP_200_OK)
         else:
-            return Response({"message": "Registration rejected"})
+            # Reject: Update status, optionally delete or notify
+            pending.status = 'rejected'
+            pending.save()
+            pending.delete()  # Clean up after rejection
+            return Response({"message": "Registration rejected"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Log the error
+            print(f"Approval error: {str(e)}")
+            return Response({'error': 'Internal server error during approval', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
