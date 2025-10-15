@@ -6,6 +6,11 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from ..serializers import RegistrationSerializer
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -23,9 +28,18 @@ class RegisterView(APIView):
         consumes=['multipart/form-data'],
         responses={201: RegistrationSerializer, 400: 'Invalid input'}
     )
-    def post(self, request):
+   def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Registration request submitted, awaiting approval"}, status=status.HTTP_201_CREATED)
+            user = serializer.save()  # Calls the new create method
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Registration successful',
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                }
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
