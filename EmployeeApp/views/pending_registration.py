@@ -46,66 +46,65 @@ class PendingRegistrationDetailView(APIView):
     def put(self, request, pk):
         try:
             pending = PendingRegistration.objects.get(pk=pk)
+            status_choice = request.data.get('status')
+            if status_choice not in ['approved', 'rejected']:
+                return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if status_choice == 'approved':
+                # Create User with pre-hashed password (use create() since password is hashed)
+                user = User.objects.create(
+                    username=pending.email,
+                    email=pending.email,
+                    password=pending.password  # Already hashed, so check_password will work with original raw
+                )
+                user.is_active = True
+                user.save()
+
+                # Assign role (default 'user', override if superadmin)
+                role = 'user' if request.user.profile.role != 'superadmin' else request.data.get('role', 'user')
+
+                # Create Profile with default category
+                default_category = Category.get_default_category()
+                profile_data = {
+                    'name': pending.name,
+                    'location': pending.location,
+                    'default_category': default_category,
+                    'role': role,
+                    'status': 'approved'
+                }
+                profile = Profile.objects.create(user=user, **profile_data)
+                if pending.image:
+                    profile.image = pending.image
+                    profile.save()
+
+                # Update pending status and optionally delete
+                pending.status = 'approved'
+                pending.save()
+                pending.delete()  # Clean up after approval
+
+                # Generate tokens for the new user (optional: return to admin for sharing)
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'message': 'Registration approved. User created successfully.',
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'role': role
+                    },
+                    'tokens': {  # Optional: for admin to provide to user
+                        'refresh': str(refresh),
+                        'access': str(refresh.access_token),
+                    }
+                }, status=status.HTTP_200_OK)
+            else:
+                # Reject: Update status, optionally delete or notify
+                pending.status = 'rejected'
+                pending.save()
+                pending.delete()  # Clean up after rejection
+                return Response({"message": "Registration rejected"}, status=status.HTTP_200_OK)
+
         except PendingRegistration.DoesNotExist:
             return Response({"error": "Pending registration not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        status_choice = request.data.get('status')
-        if status_choice not in ['approved', 'rejected']:
-            return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if status_choice == 'approved':
-            # Create User with pre-hashed password (use create() since password is hashed)
-            user = User.objects.create(
-                username=pending.email,
-                email=pending.email,
-                password=pending.password  # Already hashed, so check_password will work with original raw
-            )
-            user.is_active = True
-            user.save()
-
-            # Assign role (default 'user', override if superadmin)
-            role = 'user' if request.user.profile.role != 'superadmin' else request.data.get('role', 'user')
-
-            # Create Profile with default category
-            default_category = Category.get_default_category()
-            profile_data = {
-                'name': pending.name,
-                'location': pending.location,
-                'default_category': default_category,
-                'role': role,
-                'status': 'approved'
-            }
-            profile = Profile.objects.create(user=user, **profile_data)
-            if pending.image:
-                profile.image = pending.image
-                profile.save()
-
-            # Update pending status and optionally delete
-            pending.status = 'approved'
-            pending.save()
-            pending.delete()  # Clean up after approval
-
-            # Generate tokens for the new user (optional: return to admin for sharing)
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'message': 'Registration approved. User created successfully.',
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'role': role
-                },
-                'tokens': {  # Optional: for admin to provide to user
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                }
-            }, status=status.HTTP_200_OK)
-        else:
-            # Reject: Update status, optionally delete or notify
-            pending.status = 'rejected'
-            pending.save()
-            pending.delete()  # Clean up after rejection
-            return Response({"message": "Registration rejected"}, status=status.HTTP_200_OK)
-
         except Exception as e:
             # Log the error
             print(f"Approval error: {str(e)}")
